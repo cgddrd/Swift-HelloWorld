@@ -14,10 +14,14 @@ protocol APIControllerProtocol {
 
 class APIController {
     
-    var delegate: APIControllerProtocol?
+    // CG - Changed to no longer be an Optional variable. APIController MUST ALWAYS have a delegate.
+    //var delegate: APIControllerProtocol?
     
-    init() {
-        
+    var delegate: APIControllerProtocol
+    
+    // CG - Updated to pass delegate into APIController constructor.
+    init(newDelegate: APIControllerProtocol) {
+        self.delegate = newDelegate
     }
     
     func searchItunesFor(searchTerm: String) {
@@ -28,10 +32,8 @@ class APIController {
         // Now escape anything else that isn't URL-friendly
         if let escapedSearchTerm = itunesSearchTerm.stringByAddingPercentEscapesUsingEncoding(NSUTF8StringEncoding) {
             
-            //let urlPath = "http://itunes.apple.com/search?term=\(escapedSearchTerm)&media=software"
-            
             // CG - Search for music instead.
-            let urlPath = "https://itunes.apple.com/search?term=\(escapedSearchTerm)&media=music"
+            let urlPath = "https://itunes.apple.com/search?term=\(escapedSearchTerm)&media=music&entity=album"
             let url = NSURL(string: urlPath)
             
             // CG - Grab the default NSURLSession object. This is used for all our networking calls.
@@ -72,7 +74,11 @@ class APIController {
                     let results: NSArray = jsonResult["results"] as NSArray
                     
                     // CG - Now we will call the 'didReceiveAPIResults' method from the 'APIController' delegate (SearchViewController)
-                    self.delegate?.didReceiveAPIResults(jsonResult)
+                    //self.delegate?.didReceiveAPIResults(jsonResult)
+                    
+                    // CG - Updated to no longer treat 'delegate' as an Optional variable.
+                    
+                    self.delegate.didReceiveAPIResults(jsonResult)
 
                 }
                 
