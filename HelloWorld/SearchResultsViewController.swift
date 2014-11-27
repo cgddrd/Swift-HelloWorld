@@ -11,21 +11,43 @@ import UIKit
 class SearchResultsViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, APIControllerProtocol {
     
     var api = APIController();
+    
+    // CG - Identifier for the reusable Prototype Cell created in the Storyboard.
+    let kCellIdentifier: String = "SearchResultCell"
 
     @IBOutlet weak var appsTableView: UITableView!
     
     var tableData = []
     
-    
+    // CG - Called by the APIController once the data has been loaded asynchrounously.
     func didReceiveAPIResults(results: NSDictionary) {
         
         var resultsArr: NSArray = results["results"] as NSArray
         
+        // CG - Return to the UI thread and update the UITableView.
         dispatch_async(dispatch_get_main_queue(), {
             self.tableData = resultsArr
             self.appsTableView!.reloadData()
         })
         
+    }
+    
+    // CG - This function is called every time a cell is tapped.
+    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+        
+        // Get the row data for the selected row
+        var rowData: NSDictionary = self.tableData[indexPath.row] as NSDictionary
+        
+        var name: String = rowData["trackName"] as String
+
+        var formattedPrice: NSString = NSString(format: "£%.2f", rowData["trackPrice"] as Double)
+        
+        //Display an iOS alert view with the track title and price.
+        var alert: UIAlertView = UIAlertView()
+        alert.title = name
+        alert.message = formattedPrice
+        alert.addButtonWithTitle("Ok")
+        alert.show()
     }
     
     // CG - Simply return the number of resultant objects from the UITableView data store.
@@ -36,7 +58,10 @@ class SearchResultsViewController: UIViewController, UITableViewDataSource, UITa
     // CG - Render each of the UITableView cells.
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         
-        let cell: UITableViewCell = UITableViewCell(style: UITableViewCellStyle.Subtitle, reuseIdentifier: "MyTestCell")
+        //let cell: UITableViewCell = UITableViewCell(style: UITableViewCellStyle.Subtitle, reuseIdentifier: "MyTestCell")
+        
+        // CG - Return an already instantiated Prototype Cell (defined in the Storyboard) in order to improve performance.
+        let cell: UITableViewCell = tableView.dequeueReusableCellWithIdentifier(kCellIdentifier) as UITableViewCell
         
         // CG - Get the data for this particular cell using the 'indexPath.row' index.
         let rowData: NSDictionary = self.tableData[indexPath.row] as NSDictionary
