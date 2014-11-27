@@ -12,9 +12,16 @@ class SearchResultsViewController: UIViewController, UITableViewDataSource, UITa
     
     var api = APIController();
     
+    // CG - Dictionary of image cache. Key is a 'String' type (Image URL) and Value is a 'UIImage' type (Image data).
+    
+    // CG - Set Example: imageCache["Bob"] = UIImage(named: "Bob.jpg")
+    
+    // CG - Get Example: let imageOfBob = imageCache["Bob"]
+    var imageCache = [String : UIImage]()
+    
     // CG - Identifier for the reusable Prototype Cell created in the Storyboard.
     let kCellIdentifier: String = "SearchResultCell"
-
+    
     @IBOutlet weak var appsTableView: UITableView!
     
     var tableData = []
@@ -39,7 +46,7 @@ class SearchResultsViewController: UIViewController, UITableViewDataSource, UITa
         var rowData: NSDictionary = self.tableData[indexPath.row] as NSDictionary
         
         var name: String = rowData["trackName"] as String
-
+        
         var formattedPrice: NSString = NSString(format: "£%.2f", rowData["trackPrice"] as Double)
         
         //Display an iOS alert view with the track title and price.
@@ -58,45 +65,67 @@ class SearchResultsViewController: UIViewController, UITableViewDataSource, UITa
     // CG - Render each of the UITableView cells.
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         
-        //let cell: UITableViewCell = UITableViewCell(style: UITableViewCellStyle.Subtitle, reuseIdentifier: "MyTestCell")
-        
-        // CG - Return an already instantiated Prototype Cell (defined in the Storyboard) in order to improve performance.
         let cell: UITableViewCell = tableView.dequeueReusableCellWithIdentifier(kCellIdentifier) as UITableViewCell
         
-        // CG - Get the data for this particular cell using the 'indexPath.row' index.
-        let rowData: NSDictionary = self.tableData[indexPath.row] as NSDictionary
+        var rowData: NSDictionary = self.tableData[indexPath.row] as NSDictionary
         
-        // CG - cell.textLabel CANNOT be nil, therefore it is not optional. We need to downcast the 'rowData' object to tell Swift to force it to unwrap the value.
-        cell.textLabel.text = rowData["trackName"] as? String
+        // Add a check to make sure this exists
+        let cellText: String? = rowData["trackName"] as? String
         
-        // Grab the artworkUrl60 key to get an image URL for the app's thumbnail
-        let urlString: NSString = rowData["artworkUrl60"] as NSString
-        let imgURL: NSURL? = NSURL(string: urlString)
+        cell.textLabel.text = cellText
         
-        // Download an NSData representation of the image at the URL
-        let imgData = NSData(contentsOfURL: imgURL!)
-        cell.imageView.image = UIImage(data: imgData!)
+        cell.imageView.image = UIImage(named: "Blank52")
         
-        // Get the formatted price string for display in the subtitle
-        
-        println(rowData["trackPrice"] as Double);
-        
-        // CG - We need to cast the 'rowData["trackPrice"]' to a Double, before converting it to a NSString.
-        // CG - Use the optional form of the type cast operator (as?) when you are not sure if the downcast will succeed. This form of the operator will always return an optional value, and the value will be nil if the downcast was not possible. This enables you to check for a successful downcast.
+        // CG - Get the formatted price string for display in the subtitle
         let formattedPrice: NSString = NSString(format: "£%.2f", rowData["trackPrice"] as Double)
         
-        // CG - Alternative method to do the same as above.
+        // Jump in to a background thread to get the image for this item
         
-        // let test = rowData["trackPrice"];
-        // let formattedPrice: NSString = "\(test)"
+        // Grab the artworkUrl60 key to get an image URL for the app's thumbnail
+        let urlString = rowData["artworkUrl60"] as String
         
+        // Check our image cache for the existing key. This is just a dictionary of UIImages
+        var image = self.imageCache[urlString]
         
-        // CG - Example of OPTIONAL CHAINING (e.g. if 'detailTextLabel' exists, access its 'text' property)
+        if( image == nil ) {
+            
+            // If the image does not exist, we need to download it
+            var imgURL: NSURL = NSURL(string: urlString)!
+            
+            // Download an NSData representation of the image at the URL
+            let request: NSURLRequest = NSURLRequest(URL: imgURL)
+            NSURLConnection.sendAsynchronousRequest(request, queue: NSOperationQueue.mainQueue(), completionHandler: {(response: NSURLResponse!,data: NSData!,error: NSError!) -> Void in
+                if error == nil {
+                    image = UIImage(data: data)
+                    
+                    // Store the image in to our cache
+                    self.imageCache[urlString] = image
+                    dispatch_async(dispatch_get_main_queue(), {
+                        if let cellToUpdate = tableView.cellForRowAtIndexPath(indexPath) {
+                            cellToUpdate.imageView.image = image
+                        }
+                    })
+                }
+                else {
+                    println("Error: \(error.localizedDescription)")
+                }
+            })
+            
+        }
+            
+        // CG - Otherwise if we are able to get our image from the cache.. load it.
+        else {
+            dispatch_async(dispatch_get_main_queue(), {
+                if let cellToUpdate = tableView.cellForRowAtIndexPath(indexPath) {
+                    cellToUpdate.imageView.image = image
+                }
+            })
+        }
+        
         cell.detailTextLabel?.text = formattedPrice
         
         return cell
     }
-    
     override func viewDidLoad() {
         
         super.viewDidLoad()
@@ -107,12 +136,11 @@ class SearchResultsViewController: UIViewController, UITableViewDataSource, UITa
         
         api.searchItunesFor("Avicii")
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-
-
+    
+    
 }
-
